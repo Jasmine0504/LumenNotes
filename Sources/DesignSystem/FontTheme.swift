@@ -253,7 +253,7 @@ final class FontTheme {
     func headingUIFont(level: Int, override: NoteFontOverride? = nil) -> UIFont {
         makeUIFont(
             size: CGFloat(headingSize(level: level, override: override)),
-            textStyle: .title,
+            textStyle: .title1,
             override: override
         )
     }
