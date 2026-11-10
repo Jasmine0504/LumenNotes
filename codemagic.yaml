@@ -1,0 +1,143 @@
+workflows:
+  ios-simulator-ci:
+    name: iOS Simulator CI
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: "26.6"
+      vars:
+        XCODE_PROJECT: "LumenNotes.xcodeproj"
+        XCODE_SCHEME: "LumenNotes"
+        SIM_NAME: "iPhone 17"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+    scripts:
+      - name: Show toolchain and simulator runtimes
+        script: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun simctl list runtimes
+          xcrun simctl list devices available | sed -n '1,100p'
+
+      - name: Static preflight
+        script: |
+          set -euo pipefail
+          python3 Tools/preflight.py
+
+      - name: Generate Xcode project
+        script: |
+          set -euo pipefail
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+          xcodegen generate
+
+      - name: Build for iOS Simulator
+        script: |
+          set -euo pipefail
+          xcodebuild build \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,name=$SIM_NAME,OS=latest" \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Run unit tests on iOS Simulator
+        script: |
+          set -euo pipefail
+          mkdir -p build
+          set +e
+          xcodebuild test \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,name=$SIM_NAME,OS=latest" \
+            -derivedDataPath build/DerivedData \
+            -resultBundlePath build/TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+          TEST_EXIT=$?
+          set -e
+          if [ -d build/TestResults.xcresult ]; then
+            ditto -c -k --keepParent build/TestResults.xcresult build/TestResults.zip
+          fi
+          exit $TEST_EXIT
+
+    artifacts:
+      - build/TestResults.zip
+      - build/DerivedData/Build/Products/Debug-iphonesimulator/*.app
+      - /tmp/xcodebuild_logs/*.log
+
+  ios-testflight:
+    name: iOS TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    integrations:
+      app_store_connect: lumennotes-appstore
+    environment:
+      xcode: "26.6"
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.yourcompany.lumennotes
+      vars:
+        XCODE_PROJECT: "LumenNotes.xcodeproj"
+        XCODE_SCHEME: "LumenNotes"
+        BUNDLE_ID: "com.yourcompany.lumennotes"
+        APP_GROUP: "group.com.yourcompany.lumennotes"
+    scripts:
+      - name: Validate bundle identifiers and App Group
+        script: |
+          set -euo pipefail
+          if ! grep -R -q "$BUNDLE_ID" project.yml; then
+            echo "ERROR: project.yml does not contain BUNDLE_ID=$BUNDLE_ID."
+            echo "Edit project.yml, Resources/*.entitlements and SharedCapture.swift first."
+            exit 1
+          fi
+          if ! grep -R -q "$APP_GROUP" Resources Sources; then
+            echo "ERROR: App Group $APP_GROUP is not present in entitlements/source."
+            exit 1
+          fi
+
+      - name: Generate Xcode project
+        script: |
+          set -euo pipefail
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen generate
+
+      - name: Set monotonic build number
+        script: |
+          set -euo pipefail
+          # Codemagic's BUILD_NUMBER increases per workflow build. Keep a
+          # separate, always-increasing CFBundleVersion for TestFlight.
+          agvtool new-version -all $(($BUILD_NUMBER + 1))
+
+      - name: Apply code signing profiles
+        script: |
+          set -euo pipefail
+          xcode-project use-profiles
+
+      - name: Build signed IPA
+        script: |
+          set -euo pipefail
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        expire_build_submitted_for_review: true
