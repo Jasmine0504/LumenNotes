@@ -26,14 +26,14 @@ enum SmartDateWindow: String, Codable, CaseIterable, Hashable, Sendable {
 }
 
 enum ChecklistRequirement: String, Codable, CaseIterable, Hashable, Sendable {
-    case any, hasUnchecked, allChecked, none
+    case any, hasUnchecked, allChecked, noChecklist
 
     var displayName: String {
         switch self {
         case .any: "含核对清单"
         case .hasUnchecked: "含未完成项"
         case .allChecked: "全部已完成"
-        case .none: "不含核对清单"
+        case .noChecklist: "不含核对清单"
         }
     }
 }
@@ -97,10 +97,10 @@ struct SmartFolderRule: Codable, Hashable, Sendable {
             clauses.append("\(dateField.rawValue) \(dateWindow.predicateOperator)")
         }
         switch checklist {
-        case .any: clauses.append("checklistCount > 0")
-        case .hasUnchecked: clauses.append("uncheckedChecklistCount > 0")
-        case .allChecked: clauses.append("checklistCount > 0 AND uncheckedChecklistCount == 0")
-        case .none: clauses.append("checklistCount == 0")
+        case .any?: clauses.append("checklistCount > 0")
+        case .hasUnchecked?: clauses.append("uncheckedChecklistCount > 0")
+        case .allChecked?: clauses.append("checklistCount > 0 AND uncheckedChecklistCount == 0")
+        case .noChecklist?: clauses.append("checklistCount == 0")
         case nil: break
         }
         if requiresAttachment { clauses.append("attachments.@count > 0") }
@@ -137,7 +137,7 @@ struct SmartFolderRule: Codable, Hashable, Sendable {
             case .any: if items.isEmpty { return false }
             case .hasUnchecked: if !items.contains(where: { !$0.isChecked }) { return false }
             case .allChecked: if items.isEmpty || items.contains(where: { !$0.isChecked }) { return false }
-            case .none: if !items.isEmpty { return false }
+            case .noChecklist: if !items.isEmpty { return false }
             }
         }
         if requiresAttachment, note.attachments.isEmpty { return false }
