@@ -1,6 +1,7 @@
 import Foundation
 import PDFKit
 import PencilKit
+import SwiftUI
 import UIKit
 import Vision
 import VisionKit

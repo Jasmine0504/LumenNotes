@@ -26,7 +26,7 @@ struct GlassGroup<Content: View>: View {
 struct GlassSurfaceModifier<S: Shape>: ViewModifier {
     let shape: S
     let interactive: Bool
-    @Environment(\.accessibilityContrast) private var contrast
+    @Environment(\.colorSchemeContrast) private var contrast
 
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {

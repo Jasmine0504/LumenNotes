@@ -26,7 +26,7 @@ struct PDFDocumentView: UIViewRepresentable {
 /// A PDF page with a transparent PencilKit annotation layer. Read mode leaves
 /// PDF scrolling/zoom enabled; annotation mode pins the page and sends touches
 /// to the canvas.
-struct PDFAnnotatorView: UIViewRepresentable {
+struct PDFAnnotatorView: UIViewControllerRepresentable {
     let data: Data
     @Binding var annotationData: Data?
     var isAnnotating: Bool

@@ -172,7 +172,7 @@ def main() -> int:
     glass_text = (ROOT / "Sources/DesignSystem/Glass.swift").read_text(encoding="utf-8")
     check("GlassEffectContainer" in glass_text, "GlassEffectContainer wrapper exists")
     check("ultraThinMaterial" in glass_text, "pre-iOS-26 material fallback exists")
-    check("accessibilityContrast" in glass_text, "increased-contrast fallback exists")
+    check("colorSchemeContrast" in glass_text, "increased-contrast fallback exists")
     check(".buttonStyle(.glass)" in glass_text, "native glass button style is used")
 
     print("\n== iOS 26 feature fallbacks")
